@@ -1,8 +1,8 @@
-# zig-gnu-starter
+# zig-windows-process
 
-By default Zig defaults to looking for vcruntime, which makes it so that one
-cannot compile Zig code that relies on libc without installing MSVC.
+This repo is meant to hold tools for tinkering with Windows processes
+(though I might extend it in the future) to allow for a higher-level interface
+for injecting DLLs and such.
 
-Setting the target to `native-native-gnu` fixes this, as Zig falls back to the
-MinGW code that it itself ships. This template repository sets that default
-target automatically.
+The primary motivation is that I'd like to have a basic toolkit for dealing with
+things that usually come up in game hacking and exploration.
