@@ -4,8 +4,9 @@ const mem = std.mem;
 const fmt = std.fmt;
 const testing = std.testing;
 const heap = std.heap;
+const process = std.process;
 
-const win32 = @import("win32").c;
+// const win32 = @import("win32").c;
 const psapi = @import("./psapi.zig");
 
 const max_processes = 2048;
@@ -44,7 +45,7 @@ pub fn enumerateProcesses(processes: []ProcessId) ![]ProcessId {
     return processes[0..number_of_processes];
 }
 
-pub fn getProcessWithName(processes: []ProcessId, name: []const u8) !?ProcessId {
+pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
     var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
     var process_handle: psapi.HANDLE = undefined;
 
@@ -82,16 +83,28 @@ pub fn getProcessWithName(processes: []ProcessId, name: []const u8) !?ProcessId 
     return null;
 }
 
+const access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
+    psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
+
 pub fn main() anyerror!void {
-    const process_id = null;
-    const access = win32.PROCESS_CREATE_THREAD | win32.PROCESS_QUERY_INFORMATION |
-        win32.PROCESS_VM_READ | win32.PROCESS_VM_WRITE | win32.PROCESS_VM_OPERATION;
+    var arg_iterator = process.ArgIterator.init();
+    _ = arg_iterator.skip();
+
     var process_buffer: [max_processes]ProcessId = undefined;
-    const processes = try enumerateProcessesAlloc(heap.page_allocator);
-    const processes_on_stack = try enumerateProcesses(process_buffer[0..]);
-    for (processes_on_stack) |p| {
-        debug.warn("p={}\n", .{p});
+    const processes = try enumerateProcesses(process_buffer[0..]);
+
+    while (arg_iterator.next(heap.page_allocator)) |process_name| {
+        const process_id = try getProcessByName(processes, try process_name);
+        if (process_id) |pid| {
+            debug.warn("{}: {}\n", .{ process_name, pid });
+        } else {
+            debug.warn("{}: N/A\n", .{process_name});
+        }
     }
-    debug.warn("processes.len={}\n", .{processes_on_stack.len});
-    // var process = win32.OpenProcess(access, win32.FALSE, process_id);
+    // var process = psapi.OpenProcess(access, psapi.FALSE, process_id);
+}
+
+test "can enumerate processes with dynamic allocation" {
+    const processes = try enumerateProcessesAlloc(heap.page_allocator);
+    testing.expect(processes.len != 0);
 }
