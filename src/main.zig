@@ -11,7 +11,7 @@ const psapi = @import("./psapi.zig");
 
 const max_processes = 2048;
 
-const ProcessId = win32.DWORD;
+const ProcessId = psapi.DWORD;
 
 // pub fn injectDll(process: []const u8, dll: []const u8) !void {}
 
