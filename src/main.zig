@@ -38,7 +38,6 @@ pub fn enumerateProcesses(processes: []win32.DWORD) ![]win32.DWORD {
     ) == 0) return error.UnableToEnumerateProcesses;
 
     const number_of_processes = needed_bytes / @sizeOf(win32.DWORD);
-    debug.warn("number_of_processes={}\n", .{number_of_processes});
 
     return processes[0..number_of_processes];
 }
