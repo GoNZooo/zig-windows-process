@@ -44,6 +44,44 @@ pub fn enumerateProcesses(processes: []ProcessId) ![]ProcessId {
     return processes[0..number_of_processes];
 }
 
+pub fn getProcessWithName(processes: []ProcessId, name: []const u8) !?ProcessId {
+    var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
+    var process_handle: psapi.HANDLE = undefined;
+
+    for (processes) |process_id| {
+        process_handle = psapi.OpenProcess(
+            psapi.PROCESS_QUERY_INFORMATION | psapi.PROCESS_VM_READ,
+            psapi.FALSE,
+            process_id,
+        );
+
+        if (process_handle != null) {
+            var module: psapi.HMODULE = undefined;
+            var bytes_needed: psapi.DWORD = undefined;
+            if (psapi.EnumProcessModules(
+                process_handle,
+                &module,
+                @sizeOf(@TypeOf(module)),
+                &bytes_needed,
+            ) != 0) {
+                const length_copied = psapi.GetModuleBaseNameA(
+                    process_handle,
+                    module,
+                    &process_name[0],
+                    @sizeOf(@TypeOf(process_name)) / @sizeOf(psapi.TCHAR),
+                );
+                const name_slice = process_name[0..length_copied];
+
+                if (mem.eql(u8, name_slice, name)) return process_id;
+            } else {
+                return error.UnableToEnumerateModules;
+            }
+        }
+    }
+
+    return null;
+}
+
 pub fn main() anyerror!void {
     const process_id = null;
     const access = win32.PROCESS_CREATE_THREAD | win32.PROCESS_QUERY_INFORMATION |
