@@ -32,6 +32,13 @@ pub fn getModuleHandle(name: []const u8) !psapi.HINSTANCE {
         error.UnableToGetModuleHandle;
 }
 
+pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callconv(.C) c_longlong {
+    return if (psapi.GetProcAddress(module, "LoadLibraryA")) |address|
+        address
+    else
+        error.UnableToGetProcAddress;
+}
+
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     var process_id_buffer: [max_processes]ProcessId = undefined;
     var needed_bytes: c_uint = undefined;
