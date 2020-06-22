@@ -6,6 +6,8 @@ const testing = std.testing;
 const heap = std.heap;
 const process = std.process;
 
+const ArrayList = std.ArrayList;
+
 // const win32 = @import("win32").c;
 const psapi = @import("./psapi.zig");
 
@@ -13,7 +15,14 @@ const max_processes = 2048;
 
 const ProcessId = psapi.DWORD;
 
-// pub fn injectDll(process: []const u8, dll: []const u8) !void {}
+// @TODO: have this return null instead, maybe?
+pub fn openProcess(access_rights: c_ulong, inherit_handle: bool, pid: ProcessId) !psapi.HANDLE {
+    const win_bool: psapi.BOOL = if (inherit_handle) psapi.TRUE else psapi.FALSE;
+    return if (psapi.OpenProcess(access_rights, win_bool, pid)) |handle|
+        handle
+    else
+        error.UnableToOpenProcess;
+}
 
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     var process_id_buffer: [max_processes]ProcessId = undefined;
@@ -50,11 +59,15 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
     var process_handle: psapi.HANDLE = undefined;
 
     for (processes) |process_id| {
-        process_handle = psapi.OpenProcess(
+        process_handle = openProcess(
             psapi.PROCESS_QUERY_INFORMATION | psapi.PROCESS_VM_READ,
-            psapi.FALSE,
+            false,
             process_id,
-        );
+        ) catch |e| {
+            switch (e) {
+                error.UnableToOpenProcess => continue,
+            }
+        };
 
         if (process_handle != null) {
             var module: psapi.HMODULE = undefined;
@@ -83,8 +96,100 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
     return null;
 }
 
-const access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
-    psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
+pub fn getProcessesByName(
+    processes: []ProcessId,
+    name: []const u8,
+    buffer: []ProcessId,
+) ![]ProcessId {
+    var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
+    var process_handle: psapi.HANDLE = undefined;
+
+    var hits: usize = 0;
+    for (processes) |process_id| {
+        process_handle = openProcess(
+            psapi.PROCESS_QUERY_INFORMATION | psapi.PROCESS_VM_READ,
+            false,
+            process_id,
+        ) catch |e| {
+            switch (e) {
+                error.UnableToOpenProcess => continue,
+            }
+        };
+
+        var module: psapi.HMODULE = undefined;
+        var bytes_needed: psapi.DWORD = undefined;
+        if (psapi.EnumProcessModulesEx(
+            process_handle,
+            &module,
+            @sizeOf(@TypeOf(module)),
+            &bytes_needed,
+            psapi.LIST_MODULES_ALL,
+        ) != 0) {
+            const length_copied = psapi.GetModuleBaseNameA(
+                process_handle,
+                module,
+                &process_name[0],
+                @sizeOf(@TypeOf(process_name)) / @sizeOf(psapi.TCHAR),
+            );
+            const name_slice = process_name[0..length_copied];
+
+            if (mem.eql(u8, name_slice, name)) {
+                buffer[hits] = process_id;
+                hits += 1;
+            }
+        } else {
+            return error.UnableToEnumerateModules;
+        }
+    }
+
+    return buffer[0..hits];
+}
+
+pub fn getProcessesByNameAlloc(
+    allocator: *mem.Allocator,
+    processes: []ProcessId,
+    name: []const u8,
+) !ArrayList(ProcessId) {
+    var found_processes = ArrayList(ProcessId).init(allocator);
+    var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
+    var process_handle: psapi.HANDLE = undefined;
+
+    for (processes) |process_id| {
+        process_handle = openProcess(
+            psapi.PROCESS_QUERY_INFORMATION | psapi.PROCESS_VM_READ,
+            false,
+            process_id,
+        ) catch |e| {
+            switch (e) {
+                error.UnableToOpenProcess => continue,
+            }
+        };
+
+        var module: psapi.HMODULE = undefined;
+        var bytes_needed: psapi.DWORD = undefined;
+        if (psapi.EnumProcessModulesEx(
+            process_handle,
+            &module,
+            @sizeOf(@TypeOf(module)),
+            &bytes_needed,
+            psapi.LIST_MODULES_ALL,
+        ) != 0) {
+            const length_copied = psapi.GetModuleBaseNameA(
+                process_handle,
+                module,
+                &process_name[0],
+                @sizeOf(@TypeOf(process_name)) / @sizeOf(psapi.TCHAR),
+            );
+            const name_slice = process_name[0..length_copied];
+
+            if (mem.eql(u8, name_slice, name)) try found_processes.append(process_id);
+        } else {
+            return error.UnableToEnumerateModules;
+        }
+    }
+
+    return found_processes;
+}
 
 pub fn main() anyerror!void {
     var arg_iterator = process.ArgIterator.init();
@@ -101,7 +206,15 @@ pub fn main() anyerror!void {
             debug.warn("{}: N/A\n", .{process_name});
         }
     }
-    // var process = psapi.OpenProcess(access, psapi.FALSE, process_id);
+    var spotify_process_buffer: [max_processes]ProcessId = undefined;
+    const spotify_processes = try getProcessesByName(
+        processes,
+        "Spotify.exe",
+        spotify_process_buffer[0..],
+    );
+    for (spotify_processes) |pid| {
+        debug.warn("spotify pid: {}\n", .{pid});
+    }
 }
 
 test "can enumerate processes with dynamic allocation" {
