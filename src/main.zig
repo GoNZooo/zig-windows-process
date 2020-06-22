@@ -39,6 +39,25 @@ pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callcon
         error.UnableToGetProcAddress;
 }
 
+pub fn virtualAllocEx(
+    process_handle: psapi.HANDLE,
+    starting_address: ?*c_ulong,
+    size: usize,
+    allocation_type: psapi.DWORD,
+    protection: psapi.DWORD,
+) !*c_ulong {
+    return if (psapi.VirtualAllocEx(
+        process_handle,
+        starting_address,
+        size,
+        allocation_type,
+        protection,
+    )) |memory|
+        @ptrCast(*c_ulong, @alignCast(@alignOf(*c_ulong), memory))
+    else
+        error.UnableToVirtualAllocEx;
+}
+
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     var process_id_buffer: [max_processes]ProcessId = undefined;
     var needed_bytes: c_uint = undefined;
