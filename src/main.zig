@@ -73,6 +73,29 @@ pub fn writeProcessMemory(
     ) != 0) bytes_written else error.UnableToWriteProcessMemory;
 }
 
+pub fn createRemoteThread(
+    process_handle: psapi.HANDLE,
+    thread_attributes: psapi.LPSECURITY_ATTRIBUTES,
+    stack_size: ?usize,
+    start_address: psapi.LPTHREAD_START_ROUTINE,
+    parameter: psapi.LPVOID,
+    flags: ?psapi.DWORD,
+    thread_id: psapi.LPDWORD,
+) !psapi.HANDLE {
+    return if (psapi.CreateRemoteThread(
+        process_handle,
+        thread_attributes,
+        if (stack_size) |size| size else 0,
+        start_address,
+        parameter,
+        if (flags) |fs| fs else 0,
+        thread_id,
+    )) |thread_handle|
+        thread_handle
+    else
+        error.UnableToCreateRemoteThread;
+}
+
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     var process_id_buffer: [max_processes]ProcessId = undefined;
     var needed_bytes: c_uint = undefined;
