@@ -24,6 +24,14 @@ pub fn openProcess(access_rights: c_ulong, inherit_handle: bool, pid: ProcessId)
         error.UnableToOpenProcess;
 }
 
+// @TODO: have this return null instead, maybe?
+pub fn getModuleHandle(name: []const u8) !psapi.HINSTANCE {
+    return if (psapi.GetModuleHandleA("kernel32.dll")) |instance|
+        instance
+    else
+        error.UnableToGetModuleHandle;
+}
+
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     var process_id_buffer: [max_processes]ProcessId = undefined;
     var needed_bytes: c_uint = undefined;
