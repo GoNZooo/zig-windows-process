@@ -49,7 +49,7 @@ pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
         null,
     );
 
-    if (psapi.CloseHandle(process_handle) == 0) return error.UnableToCloseHandle;
+    try closeHandle(process_handle);
 }
 
 // @TODO: have this return null instead, maybe?
@@ -67,6 +67,10 @@ pub fn getModuleHandle(name: []const u8) !psapi.HINSTANCE {
         instance
     else
         error.UnableToGetModuleHandle;
+}
+
+pub fn closeHandle(handle: psapi.HANDLE) !void {
+    if (psapi.CloseHandle(handle) == 0) return error.UnableToCloseHandle;
 }
 
 pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callconv(.C) c_longlong {
@@ -181,11 +185,12 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
         if (process_handle != null) {
             var module: psapi.HMODULE = undefined;
             var bytes_needed: psapi.DWORD = undefined;
-            if (psapi.EnumProcessModules(
+            if (psapi.EnumProcessModulesEx(
                 process_handle,
                 &module,
                 @sizeOf(@TypeOf(module)),
                 &bytes_needed,
+                psapi.LIST_MODULES_ALL,
             ) != 0) {
                 const length_copied = psapi.GetModuleBaseNameA(
                     process_handle,
@@ -196,6 +201,8 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
                 const name_slice = process_name[0..length_copied];
 
                 if (mem.eql(u8, name_slice, name)) return process_id;
+
+                try closeHandle(process_handle);
             } else {
                 return error.UnableToEnumerateModules;
             }
@@ -246,6 +253,8 @@ pub fn getProcessesByName(
                 buffer[hits] = process_id;
                 hits += 1;
             }
+
+            try closeHandle(process_handle);
         } else {
             return error.UnableToEnumerateModules;
         }
@@ -322,7 +331,7 @@ pub fn main() anyerror!void {
         spotify_process_buffer[0..],
     );
     for (spotify_processes) |pid| {
-        debug.warn("spotify pid: {}\n", .{pid});
+        try injectDll(pid, "whatever.dll");
     }
 }
 
