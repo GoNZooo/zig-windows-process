@@ -15,6 +15,43 @@ const max_processes = 2048;
 
 const ProcessId = psapi.DWORD;
 
+const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
+    psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
+
+pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
+    const process_handle = try openProcess(inject_access, false, pid);
+
+    const kernel32_module = try getModuleHandle("kernel32.dll");
+
+    const load_library_ptr = try getProcAddress(kernel32_module, "LoadLibraryA");
+
+    var memory = try virtualAllocEx(
+        process_handle,
+        null,
+        dll_name.len + 1,
+        psapi.MEM_RESERVE | psapi.MEM_COMMIT,
+        psapi.PAGE_READWRITE,
+    );
+
+    const bytes_written = try writeProcessMemory(
+        process_handle,
+        memory,
+        dll_name,
+    );
+
+    _ = try createRemoteThread(
+        process_handle,
+        null,
+        null,
+        @ptrCast(fn (?*c_void) callconv(.C) c_ulong, load_library_ptr),
+        memory,
+        null,
+        null,
+    );
+
+    if (psapi.CloseHandle(process_handle) == 0) return error.UnableToCloseHandle;
+}
+
 // @TODO: have this return null instead, maybe?
 pub fn openProcess(access_rights: c_ulong, inherit_handle: bool, pid: ProcessId) !psapi.HANDLE {
     const win_bool: psapi.BOOL = if (inherit_handle) psapi.TRUE else psapi.FALSE;
