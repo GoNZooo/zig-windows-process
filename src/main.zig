@@ -58,6 +58,21 @@ pub fn virtualAllocEx(
         error.UnableToVirtualAllocEx;
 }
 
+pub fn writeProcessMemory(
+    process_handle: psapi.HANDLE,
+    starting_address: ?*c_ulong,
+    buffer: [:0]const u8,
+) !usize {
+    var bytes_written: usize = undefined;
+    return if (psapi.WriteProcessMemory(
+        process_handle,
+        starting_address,
+        buffer.ptr,
+        buffer.len,
+        &bytes_written,
+    ) != 0) bytes_written else error.UnableToWriteProcessMemory;
+}
+
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     var process_id_buffer: [max_processes]ProcessId = undefined;
     var needed_bytes: c_uint = undefined;
