@@ -13,14 +13,25 @@ pub export fn DllMain(
     reason: win32.DWORD,
     reserved: win32.LPVOID,
 ) callconv(.Stdcall) win32.BOOL {
-    _ = win32.AttachConsole(@intCast(c_ulong, 0) -% 1);
+    _ = win32.AllocConsole();
     switch (reason) {
-        win32.DLL_PROCESS_ATTACH => debug.warn("process attach\n", .{}),
-        win32.DLL_PROCESS_DETACH => debug.warn("process detach\n", .{}),
-        win32.DLL_THREAD_ATTACH => debug.warn("thread attach\n", .{}),
-        win32.DLL_THREAD_DETACH => debug.warn("thread detach\n", .{}),
-        else => {},
+        win32.DLL_PROCESS_ATTACH => {
+            debug.warn("process attach\n", .{});
+            // _ = win32.MessageBoxA(null, "attach", "process attach", 0);
+        },
+        win32.DLL_PROCESS_DETACH => {
+            debug.warn("process detach\n", .{});
+        },
+        win32.DLL_THREAD_ATTACH => {
+            debug.warn("thread attach\n", .{});
+        },
+        win32.DLL_THREAD_DETACH => {
+            debug.warn("thread detach\n", .{});
+        },
+        else => {
+            debug.warn("something else\n", .{});
+        },
     }
 
-    return 0;
+    return win32.TRUE;
 }

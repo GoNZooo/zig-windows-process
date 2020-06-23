@@ -42,16 +42,24 @@ pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
         full_dll_path[0..(full_length + 1)],
     );
 
-    _ = try createRemoteThread(
+    const thread_handle = try createRemoteThread(
         process_handle,
         null,
-        null,
-        @ptrCast(fn (?*c_void) callconv(.C) c_ulong, load_library_ptr),
+        0,
+        @ptrCast(psapi.LPTHREAD_START_ROUTINE, load_library_ptr),
         memory,
-        null,
+        0,
         null,
     );
 
+    const wait_result = psapi.WaitForSingleObject(thread_handle, psapi.INFINITE);
+
+    var exit_code: psapi.DWORD = undefined;
+    const exit_code_result = psapi.GetExitCodeThread(thread_handle, &exit_code);
+    debug.warn("injection exit code: {}\n", .{exit_code_result});
+
+    try closeHandle(thread_handle);
+    try virtualFreeEx(process_handle, memory, 0, psapi.MEM_RELEASE);
     try closeHandle(process_handle);
 }
 
@@ -66,7 +74,7 @@ pub fn openProcess(access_rights: c_ulong, inherit_handle: bool, pid: ProcessId)
 
 // @TODO: have this return null instead, maybe?
 pub fn getModuleHandle(name: []const u8) !psapi.HINSTANCE {
-    return if (psapi.GetModuleHandleA("kernel32.dll")) |instance|
+    return if (psapi.GetModuleHandleA(name.ptr)) |instance|
         instance
     else
         error.UnableToGetModuleHandle;
@@ -77,7 +85,7 @@ pub fn closeHandle(handle: psapi.HANDLE) !void {
 }
 
 pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callconv(.C) c_longlong {
-    return if (psapi.GetProcAddress(module, "LoadLibraryA")) |address|
+    return if (psapi.GetProcAddress(module, name.ptr)) |address|
         address
     else
         error.UnableToGetProcAddress;
@@ -131,19 +139,20 @@ pub fn writeProcessMemory(
 pub fn createRemoteThread(
     process_handle: psapi.HANDLE,
     thread_attributes: psapi.LPSECURITY_ATTRIBUTES,
-    stack_size: ?usize,
+    stack_size: usize,
     start_address: psapi.LPTHREAD_START_ROUTINE,
     parameter: psapi.LPVOID,
-    flags: ?psapi.DWORD,
+    flags: psapi.DWORD,
     thread_id: psapi.LPDWORD,
 ) !psapi.HANDLE {
-    return if (psapi.CreateRemoteThread(
+    return if (psapi.CreateRemoteThreadEx(
         process_handle,
         thread_attributes,
-        if (stack_size) |size| size else 0,
+        stack_size,
         start_address,
         parameter,
-        if (flags) |fs| fs else 0,
+        flags,
+        null,
         thread_id,
     )) |thread_handle|
         thread_handle
@@ -338,15 +347,18 @@ pub fn main() anyerror!void {
             debug.warn("{}: N/A\n", .{process_name});
         }
     }
-    var spotify_process_buffer: [max_processes]ProcessId = undefined;
-    const spotify_processes = try getProcessesByName(
+    var chrome_process_buffer: [max_processes]ProcessId = undefined;
+    const chrome_processes = try getProcessesByName(
         processes,
-        "Spotify.exe",
-        spotify_process_buffer[0..],
+        "chrome.exe",
+        chrome_process_buffer[0..],
     );
-    for (spotify_processes) |pid| {
-        try injectDll(pid, "whatever.dll");
+    for (chrome_processes) |pid| {
+        // debug.warn("pid={}\n", .{pid});
+        try injectDll(pid, ".\\injected.dll");
     }
+    // const res = psapi.LoadLibraryA("C:\\Users\\ricka\\code\\zig\\windows-process\\injected.dll");
+    // debug.warn("res={}\n", .{res});
 }
 
 test "can enumerate processes with dynamic allocation" {

@@ -16,6 +16,7 @@ pub fn build(b: *Builder) void {
 
     const exe = b.addExecutable("find-processes", "src/main.zig");
     exe.linkLibC();
+    exe.linkSystemLibrary("kernel32");
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
