@@ -8,7 +8,6 @@ const process = std.process;
 
 const ArrayList = std.ArrayList;
 
-// const win32 = @import("win32").c;
 const psapi = @import("./psapi.zig");
 
 const max_processes = 2048;
@@ -18,7 +17,7 @@ const ProcessId = psapi.DWORD;
 const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
     psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
 
-pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
+pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !psapi.DWORD {
     var full_dll_path: [psapi.MAX_PATH:0]u8 = undefined;
     const full_length = psapi.GetFullPathNameA(dll_name.ptr, psapi.MAX_PATH, &full_dll_path, null);
 
@@ -54,13 +53,13 @@ pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
 
     const wait_result = psapi.WaitForSingleObject(thread_handle, psapi.INFINITE);
 
-    var exit_code: psapi.DWORD = undefined;
-    const exit_code_result = psapi.GetExitCodeThread(thread_handle, &exit_code);
-    debug.warn("injection exit code: {}\n", .{exit_code_result});
+    const exit_code = try getExitCodeThread(thread_handle);
 
     try closeHandle(thread_handle);
     try virtualFreeEx(process_handle, memory, 0, psapi.MEM_RELEASE);
     try closeHandle(process_handle);
+
+    return exit_code;
 }
 
 // @TODO: have this return null instead, maybe?
@@ -158,6 +157,15 @@ pub fn createRemoteThread(
         thread_handle
     else
         error.UnableToCreateRemoteThread;
+}
+
+pub fn getExitCodeThread(handle: psapi.HANDLE) !psapi.DWORD {
+    var exit_code: psapi.DWORD = undefined;
+    if (psapi.GetExitCodeThread(handle, &exit_code) == 0) {
+        return error.UnableToGetExitCodeFromThread;
+    }
+
+    return exit_code;
 }
 
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
@@ -355,7 +363,8 @@ pub fn main() anyerror!void {
     );
     for (chrome_processes) |pid| {
         // debug.warn("pid={}\n", .{pid});
-        try injectDll(pid, ".\\injected.dll");
+        const exit_code = try injectDll(pid, ".\\injected.dll");
+        debug.warn("{} executed with exit code: {}\n", .{ pid, exit_code });
     }
     // const res = psapi.LoadLibraryA("C:\\Users\\ricka\\code\\zig\\windows-process\\injected.dll");
     // debug.warn("res={}\n", .{res});
