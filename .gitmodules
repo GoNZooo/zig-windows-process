@@ -1,0 +1,3 @@
+[submodule "dependencies/zig-win32"]
+	path = dependencies/zig-win32
+	url = https://github.com/GoNZooo/zig-win32

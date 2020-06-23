@@ -19,6 +19,9 @@ const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMAT
     psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
 
 pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
+    var full_dll_path: [psapi.MAX_PATH:0]u8 = undefined;
+    const full_length = psapi.GetFullPathNameA(dll_name.ptr, psapi.MAX_PATH, &full_dll_path, null);
+
     const process_handle = try openProcess(inject_access, false, pid);
 
     const kernel32_module = try getModuleHandle("kernel32.dll");
@@ -28,7 +31,7 @@ pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
     var memory = try virtualAllocEx(
         process_handle,
         null,
-        dll_name.len + 1,
+        full_length + 1,
         psapi.MEM_RESERVE | psapi.MEM_COMMIT,
         psapi.PAGE_READWRITE,
     );
@@ -36,7 +39,7 @@ pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !void {
     const bytes_written = try writeProcessMemory(
         process_handle,
         memory,
-        dll_name,
+        full_dll_path[0..(full_length + 1)],
     );
 
     _ = try createRemoteThread(
@@ -102,7 +105,7 @@ pub fn virtualAllocEx(
 pub fn writeProcessMemory(
     process_handle: psapi.HANDLE,
     starting_address: ?*c_ulong,
-    buffer: [:0]const u8,
+    buffer: []const u8,
 ) !usize {
     var bytes_written: usize = undefined;
     return if (psapi.WriteProcessMemory(

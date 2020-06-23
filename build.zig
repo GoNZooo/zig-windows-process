@@ -1,6 +1,7 @@
-const Builder = @import("std").build.Builder;
-const CrossTarget = @import("std").zig.CrossTarget;
-const Abi = @import("std").Target.Abi;
+const std = @import("std");
+const Builder = std.build.Builder;
+const CrossTarget = std.zig.CrossTarget;
+const Abi = std.Target.Abi;
 
 pub fn build(b: *Builder) void {
     // Standard target options allows the person running `zig build` to choose
@@ -18,6 +19,14 @@ pub fn build(b: *Builder) void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
+
+    // const lib = b.addSharedLibrary("injected", "src/injected.zig", .{ .major = 0, .minor = 1 });
+    // lib.linkLibC();
+    // lib.linkSystemLibrary("msvcrt");
+    // lib.addPackagePath("win32", "./dependencies/zig-win32/src/main.zig");
+    // lib.setTarget(target);
+    // lib.setBuildMode(mode);
+    // lib.install();
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());
