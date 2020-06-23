@@ -102,6 +102,17 @@ pub fn virtualAllocEx(
         error.UnableToVirtualAllocEx;
 }
 
+pub fn virtualFreeEx(
+    process_handle: psapi.HANDLE,
+    starting_address: ?*c_ulong,
+    size: usize,
+    free_type: psapi.DWORD,
+) !void {
+    if (psapi.VirtualFreeEx(process_handle, starting_address, size, free_type) == 0) {
+        return error.UnableToVirtualFreeEx;
+    }
+}
+
 pub fn writeProcessMemory(
     process_handle: psapi.HANDLE,
     starting_address: ?*c_ulong,
