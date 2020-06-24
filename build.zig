@@ -14,12 +14,19 @@ pub fn build(b: *Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const exe = b.addExecutable("find-processes", "src/main.zig");
-    exe.linkLibC();
-    exe.linkSystemLibrary("kernel32");
-    exe.setTarget(target);
-    exe.setBuildMode(mode);
-    exe.install();
+    const find_process_exe = b.addExecutable("find-process", "src/find_process.zig");
+    find_process_exe.linkLibC();
+    find_process_exe.linkSystemLibrary("kernel32");
+    find_process_exe.setTarget(target);
+    find_process_exe.setBuildMode(mode);
+    find_process_exe.install();
+
+    const inject_dll_exe = b.addExecutable("inject-dll", "src/inject_dll.zig");
+    inject_dll_exe.linkLibC();
+    inject_dll_exe.linkSystemLibrary("kernel32");
+    inject_dll_exe.setTarget(target);
+    inject_dll_exe.setBuildMode(mode);
+    inject_dll_exe.install();
 
     // const lib = b.addSharedLibrary("injected", "src/injected.zig", .{ .major = 0, .minor = 1 });
     // lib.linkLibC();
@@ -29,9 +36,15 @@ pub fn build(b: *Builder) void {
     // lib.setBuildMode(mode);
     // lib.install();
 
-    const run_cmd = exe.run();
-    run_cmd.step.dependOn(b.getInstallStep());
+    const run_find_process_cmd = find_process_exe.run();
+    run_find_process_cmd.step.dependOn(b.getInstallStep());
 
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    const run_find_process_step = b.step("run-find-process", "Run the `find-process` app");
+    run_find_process_step.dependOn(&run_find_process_cmd.step);
+
+    const run_inject_dll_cmd = inject_dll_exe.run();
+    run_inject_dll_cmd.step.dependOn(b.getInstallStep());
+
+    const run_inject_dll_step = b.step("run-inject-dll", "Run the `inject-dll` app");
+    run_inject_dll_step.dependOn(&run_inject_dll_cmd.step);
 }

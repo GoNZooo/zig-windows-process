@@ -10,9 +10,7 @@ const ArrayList = std.ArrayList;
 
 const psapi = @import("./psapi.zig");
 
-const max_processes = 2048;
-
-const ProcessId = psapi.DWORD;
+pub const ProcessId = psapi.DWORD;
 
 const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
     psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
@@ -335,33 +333,6 @@ pub fn getProcessesByNameAlloc(
     }
 
     return found_processes;
-}
-
-pub fn main() anyerror!void {
-    var arg_iterator = process.ArgIterator.init();
-    _ = arg_iterator.skip();
-
-    var process_buffer: [max_processes]ProcessId = undefined;
-    const processes = try enumerateProcesses(process_buffer[0..]);
-
-    while (arg_iterator.next(heap.page_allocator)) |process_name| {
-        const process_id = try getProcessByName(processes, try process_name);
-        if (process_id) |pid| {
-            debug.warn("{}: {}\n", .{ process_name, pid });
-        } else {
-            debug.warn("{}: N/A\n", .{process_name});
-        }
-    }
-    var chrome_process_buffer: [max_processes]ProcessId = undefined;
-    const chrome_processes = try getProcessesByName(
-        processes,
-        "chrome.exe",
-        chrome_process_buffer[0..],
-    );
-    for (chrome_processes) |pid| {
-        const exit_code = try injectDll(pid, ".\\injected.dll");
-        debug.warn("{} executed with exit code: {}\n", .{ pid, exit_code });
-    }
 }
 
 test "can enumerate processes with dynamic allocation" {
