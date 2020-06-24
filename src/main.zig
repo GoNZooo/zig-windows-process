@@ -170,12 +170,11 @@ pub fn getExitCodeThread(handle: psapi.HANDLE) !psapi.DWORD {
 
 pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     var process_id_buffer: [max_processes]ProcessId = undefined;
+    const size_of_buffer = @sizeOf(@TypeOf(process_id_buffer));
     var needed_bytes: c_uint = undefined;
-    if (psapi.EnumProcesses(
-        &process_id_buffer,
-        @sizeOf(@TypeOf(process_id_buffer)),
-        &needed_bytes,
-    ) == 0) return error.UnableToEnumerateProcesses;
+    const enum_result = psapi.EnumProcesses(&process_id_buffer, size_of_buffer, &needed_bytes);
+    if (enum_result == 0)
+        return error.UnableToEnumerateProcesses;
 
     const number_of_processes = needed_bytes / @sizeOf(ProcessId);
 
@@ -187,11 +186,9 @@ pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
 
 pub fn enumerateProcesses(processes: []ProcessId) ![]ProcessId {
     var needed_bytes: c_uint = undefined;
-    if (psapi.EnumProcesses(
-        processes.ptr,
-        @sizeOf(ProcessId) * @intCast(c_ulong, processes.len),
-        &needed_bytes,
-    ) == 0) return error.UnableToEnumerateProcesses;
+    const processes_size = @sizeOf(ProcessId) * @intCast(c_ulong, processes.len);
+    const enum_result = psapi.EnumProcesses(processes.ptr, processes_size, &needed_bytes);
+    if (enum_result == 0) return error.UnableToEnumerateProcesses;
 
     const number_of_processes = needed_bytes / @sizeOf(ProcessId);
 
