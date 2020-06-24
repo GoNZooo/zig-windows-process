@@ -359,12 +359,9 @@ pub fn main() anyerror!void {
         chrome_process_buffer[0..],
     );
     for (chrome_processes) |pid| {
-        // debug.warn("pid={}\n", .{pid});
         const exit_code = try injectDll(pid, ".\\injected.dll");
         debug.warn("{} executed with exit code: {}\n", .{ pid, exit_code });
     }
-    // const res = psapi.LoadLibraryA("C:\\Users\\ricka\\code\\zig\\windows-process\\injected.dll");
-    // debug.warn("res={}\n", .{res});
 }
 
 test "can enumerate processes with dynamic allocation" {
