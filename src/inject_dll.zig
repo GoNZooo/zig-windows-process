@@ -13,20 +13,27 @@ const ProcessId = winprocess.ProcessId;
 const max_processes = 2048;
 
 pub fn main() anyerror!void {
-    var arg_iterator = process.ArgIterator.init();
-    _ = arg_iterator.skip();
+    const args = try process.argsAlloc(heap.page_allocator);
+    if (args.len != 3) {
+        debug.warn("Usage: {} <dll-to-inject> <process-name>", .{args[0]});
+
+        process.exit(1);
+    }
+
+    const dll_name = args[1];
+    const process_name = args[2];
 
     var process_buffer: [max_processes]ProcessId = undefined;
     const processes = try winprocess.enumerateProcesses(process_buffer[0..]);
-    var chrome_process_buffer: [max_processes]ProcessId = undefined;
-    const chrome_processes = try winprocess.getProcessesByName(
+    var target_process_buffer: [max_processes]ProcessId = undefined;
+    const target_processes = try winprocess.getProcessesByName(
         processes,
-        "chrome.exe",
-        chrome_process_buffer[0..],
+        process_name,
+        target_process_buffer[0..],
     );
 
-    for (chrome_processes) |pid| {
-        const exit_code = try winprocess.injectDll(pid, ".\\injected.dll");
+    for (target_processes) |pid| {
+        const exit_code = try winprocess.injectDll(pid, dll_name);
         debug.warn("{} executed with exit code: {}\n", .{ pid, exit_code });
     }
 }
