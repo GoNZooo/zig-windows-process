@@ -17,9 +17,17 @@ const max_processes = 2048;
 const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
     psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
 
-pub fn injectDll(pid: ProcessId, dll_name: [:0]const u8) !psapi.DWORD {
+pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
+    var zeroed_dll_name: [psapi.MAX_PATH:0]u8 = undefined;
+    mem.copy(u8, zeroed_dll_name[0..dll_name.len], dll_name);
+    zeroed_dll_name[dll_name.len] = 0;
     var full_dll_path: [psapi.MAX_PATH:0]u8 = undefined;
-    const full_length = psapi.GetFullPathNameA(dll_name.ptr, psapi.MAX_PATH, &full_dll_path, null);
+    const full_length = psapi.GetFullPathNameA(
+        &zeroed_dll_name[0],
+        psapi.MAX_PATH,
+        &full_dll_path,
+        null,
+    );
 
     const process_handle = try openProcess(inject_access, false, pid);
 
