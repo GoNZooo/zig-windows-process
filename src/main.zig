@@ -221,13 +221,14 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
         if (process_handle != null) {
             var module: psapi.HMODULE = undefined;
             var bytes_needed: psapi.DWORD = undefined;
-            if (psapi.EnumProcessModulesEx(
+            const enum_result = psapi.EnumProcessModulesEx(
                 process_handle,
                 &module,
                 @sizeOf(@TypeOf(module)),
                 &bytes_needed,
                 psapi.LIST_MODULES_ALL,
-            ) != 0) {
+            );
+            if (enum_result != 0) {
                 const length_copied = psapi.GetModuleBaseNameA(
                     process_handle,
                     module,
@@ -270,13 +271,14 @@ pub fn getProcessesByName(
 
         var module: psapi.HMODULE = undefined;
         var bytes_needed: psapi.DWORD = undefined;
-        if (psapi.EnumProcessModulesEx(
+        const enum_result = psapi.EnumProcessModulesEx(
             process_handle,
             &module,
             @sizeOf(@TypeOf(module)),
             &bytes_needed,
             psapi.LIST_MODULES_ALL,
-        ) != 0) {
+        );
+        if (enum_result != 0) {
             const length_copied = psapi.GetModuleBaseNameA(
                 process_handle,
                 module,
@@ -321,13 +323,14 @@ pub fn getProcessesByNameAlloc(
 
         var module: psapi.HMODULE = undefined;
         var bytes_needed: psapi.DWORD = undefined;
-        if (psapi.EnumProcessModulesEx(
+        const enum_result = psapi.EnumProcessModulesEx(
             process_handle,
             &module,
             @sizeOf(@TypeOf(module)),
             &bytes_needed,
             psapi.LIST_MODULES_ALL,
-        ) != 0) {
+        );
+        if (enum_result != 0) {
             const length_copied = psapi.GetModuleBaseNameA(
                 process_handle,
                 module,
