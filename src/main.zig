@@ -12,6 +12,8 @@ const psapi = @import("./psapi.zig");
 
 pub const ProcessId = psapi.DWORD;
 
+const max_processes = 2048;
+
 const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
     psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
 
