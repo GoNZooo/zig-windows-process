@@ -17,6 +17,8 @@ const max_processes = 2048;
 const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
     psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
 
+/// Injects the DLL located at the path `dll_name` into the process with ID `pid`.
+/// The path will be expanded as needed into an absolute path.
 pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
     var zeroed_dll_name: [psapi.MAX_PATH:0]u8 = undefined;
     mem.copy(u8, zeroed_dll_name[0..dll_name.len], dll_name);
