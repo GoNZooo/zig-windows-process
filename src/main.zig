@@ -218,11 +218,11 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
             }
         };
 
-        if (process_handle != null) {
+        if (process_handle) |handle| {
             var module: psapi.HMODULE = undefined;
             var bytes_needed: psapi.DWORD = undefined;
             const enum_result = psapi.EnumProcessModulesEx(
-                process_handle,
+                handle,
                 &module,
                 @sizeOf(@TypeOf(module)),
                 &bytes_needed,
@@ -230,7 +230,7 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
             );
             if (enum_result != 0) {
                 const length_copied = psapi.GetModuleBaseNameA(
-                    process_handle,
+                    handle,
                     module,
                     &process_name[0],
                     @sizeOf(@TypeOf(process_name)) / @sizeOf(psapi.TCHAR),
@@ -239,7 +239,7 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
 
                 if (mem.eql(u8, name_slice, name)) return process_id;
 
-                try closeHandle(process_handle);
+                try closeHandle(handle);
             } else {
                 return error.UnableToEnumerateModules;
             }
@@ -247,6 +247,13 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
     }
 
     return null;
+}
+
+test "`getProcessName` finds 'zig.exe'" {
+    var process_buffer: [max_processes]ProcessId = undefined;
+    const processes = try enumerateProcesses(process_buffer[0..]);
+    const zig_process = try getProcessByName(processes, "zig.exe");
+    testing.expect(zig_process != null);
 }
 
 pub fn getProcessesByName(
