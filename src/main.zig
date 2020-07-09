@@ -369,6 +369,13 @@ pub fn getProcessesByNameAlloc(
     return found_processes;
 }
 
+test "`getProcessesByNameAlloc` finds zig processes" {
+    var processes_buffer: [max_processes]ProcessId = undefined;
+    const processes = try enumerateProcesses(processes_buffer[0..]);
+    const zig_processes = try getProcessesByNameAlloc(heap.page_allocator, processes, "zig.exe");
+    testing.expect(zig_processes.items.len != 0);
+}
+
 test "can enumerate processes with dynamic allocation" {
     const processes = try enumerateProcessesAlloc(heap.page_allocator);
     testing.expect(processes.len != 0);
