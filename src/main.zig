@@ -203,6 +203,8 @@ pub fn enumerateProcesses(processes: []ProcessId) ![]ProcessId {
     return processes[0..number_of_processes];
 }
 
+/// Returns one or no process IDs for a process matching a given name, biased
+/// towards the first match in the process ID slice.
 pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
     var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
     var process_handle: psapi.HANDLE = undefined;
