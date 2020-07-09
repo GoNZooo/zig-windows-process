@@ -43,7 +43,7 @@ pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
         psapi.PAGE_READWRITE,
     );
 
-    const bytes_written = try writeProcessMemory(
+    _ = try writeProcessMemory(
         process_handle,
         memory,
         full_dll_path[0..(full_length + 1)],
