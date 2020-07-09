@@ -251,13 +251,6 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
     return null;
 }
 
-test "`getProcessName` finds 'zig.exe'" {
-    var process_buffer: [max_processes]ProcessId = undefined;
-    const processes = try enumerateProcesses(process_buffer[0..]);
-    const zig_process = try getProcessByName(processes, "zig.exe");
-    testing.expect(zig_process != null);
-}
-
 /// Returns all (or no) process IDs matching a given name. The result slice to
 /// fill is taken as a parameter, allowing one to slice into a stack allocated
 /// array easily. This may or may not be removed in favor of only having the
@@ -312,14 +305,6 @@ pub fn getProcessesByName(
     }
 
     return buffer[0..hits];
-}
-
-test "`getProcessesByName` finds zig processes" {
-    var process_buffer: [max_processes]ProcessId = undefined;
-    const processes = try enumerateProcesses(process_buffer[0..]);
-    var results_buffer: [max_processes]ProcessId = undefined;
-    const zig_processes = try getProcessesByName(processes, "zig.exe", results_buffer[0..]);
-    testing.expect(zig_processes.len > 0);
 }
 
 /// Returns all (or no) process IDs matching a given name.
@@ -381,4 +366,19 @@ test "`getProcessesByNameAlloc` finds zig processes" {
 test "can enumerate processes with dynamic allocation" {
     const processes = try enumerateProcessesAlloc(heap.page_allocator);
     testing.expect(processes.len != 0);
+}
+
+test "`getProcessName` finds 'zig.exe'" {
+    var process_buffer: [max_processes]ProcessId = undefined;
+    const processes = try enumerateProcesses(process_buffer[0..]);
+    const zig_process = try getProcessByName(processes, "zig.exe");
+    testing.expect(zig_process != null);
+}
+
+test "`getProcessesByName` finds zig processes" {
+    var process_buffer: [max_processes]ProcessId = undefined;
+    const processes = try enumerateProcesses(process_buffer[0..]);
+    var results_buffer: [max_processes]ProcessId = undefined;
+    const zig_processes = try getProcessesByName(processes, "zig.exe", results_buffer[0..]);
+    testing.expect(zig_processes.len > 0);
 }
