@@ -322,6 +322,8 @@ test "`getProcessesByName` finds zig processes" {
     testing.expect(zig_processes.len > 0);
 }
 
+/// Returns all (or no) process IDs matching a given name.
+/// The caller is responsible for freeing the returned `ArrayList`.
 pub fn getProcessesByNameAlloc(
     allocator: *mem.Allocator,
     processes: []ProcessId,
