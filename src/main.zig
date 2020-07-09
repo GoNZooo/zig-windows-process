@@ -192,6 +192,8 @@ pub fn enumerateProcessesAlloc(allocator: *mem.Allocator) ![]ProcessId {
     return processes;
 }
 
+/// Returns the IDs of all running processes. The passed in slice is filled in
+/// with the result.
 pub fn enumerateProcesses(processes: []ProcessId) ![]ProcessId {
     var needed_bytes: c_uint = undefined;
     const processes_size = @sizeOf(ProcessId) * @intCast(c_ulong, processes.len);
