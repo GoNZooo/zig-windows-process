@@ -72,7 +72,8 @@ pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
     return exit_code;
 }
 
-// @TODO: have this return null instead, maybe?
+/// Opens a process and returns a handle to it.
+/// The caller is responsible for calling `closeHandle` on the returned handle.
 pub fn openProcess(access_rights: c_ulong, inherit_handle: bool, pid: ProcessId) !psapi.HANDLE {
     const win_bool: psapi.BOOL = if (inherit_handle) psapi.TRUE else psapi.FALSE;
     return if (psapi.OpenProcess(access_rights, win_bool, pid)) |handle|
