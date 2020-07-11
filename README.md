@@ -7,6 +7,15 @@ for injecting DLLs and such.
 The primary motivation is that I'd like to have a basic toolkit for dealing with
 things that usually come up in game hacking and exploration.
 
+## The library code
+
+The library code is primarily in `main.zig` so if you were to add the package
+it would be from that file, as follows:
+
+```zig
+exe.addPackagePath("windows-process", "dependencies/windows-process/src/main.zig");
+```
+
 ## Example usage
 
 ### DLL injection
