@@ -90,6 +90,7 @@ pub fn getModuleHandle(name: []const u8) !psapi.HINSTANCE {
         error.UnableToGetModuleHandle;
 }
 
+/// Closes a handle, should be used after `openProcess`.
 pub fn closeHandle(handle: psapi.HANDLE) !void {
     if (psapi.CloseHandle(handle) == 0) return error.UnableToCloseHandle;
 }
