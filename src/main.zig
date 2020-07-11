@@ -95,6 +95,8 @@ pub fn closeHandle(handle: psapi.HANDLE) !void {
     if (psapi.CloseHandle(handle) == 0) return error.UnableToCloseHandle;
 }
 
+/// Returns a function pointer to the function with `name` in `module`. A module
+/// can be loaded via `getModuleHandle`.
 pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callconv(.C) c_longlong {
     return if (psapi.GetProcAddress(module, name.ptr)) |address|
         address
