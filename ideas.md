@@ -5,9 +5,9 @@
 The idea of loading arbitrary memory inside a remote process is interesting
 because it sidesteps the DLL path expansion and could possibly be more flexible.
 
-### Issues?
+### Possible issues
 
-#### Possible technical issues
+#### Technical
 
 I'm not aware of which functions we could use to execute the copied over memory.
 Currently we're copying over the path to the DLL and it's mostly by coincidence
@@ -18,7 +18,7 @@ out what inside of it matches the `createRemoteThread` contract and execute that
 Beyond that, what mappings in the DLL data are actually set up with
 `LoadLibraryA`?
 
-### Possibly opportunity cost issues
+#### Opportunity cost
 
 It's entirely possible that an entirely different type of injection or process
 manipulation technique is better to spend time and energy on.
