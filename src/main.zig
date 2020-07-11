@@ -128,6 +128,8 @@ pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callcon
         error.UnableToGetProcAddress;
 }
 
+/// Allocates memory in the process corresponding to `process_handle`, which can
+/// be used to allocate memory in other processes.
 pub fn virtualAllocEx(
     process_handle: psapi.HANDLE,
     starting_address: ?*c_ulong,
