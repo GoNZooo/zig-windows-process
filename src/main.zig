@@ -41,6 +41,7 @@ pub const AllocationType = packed struct {
     }
 };
 
+// @TODO: take in DLL byte data instead of path here?
 /// Injects the DLL located at the path `dll_name` into the process with ID `pid`.
 /// The path will be expanded as needed into an absolute path.
 pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
