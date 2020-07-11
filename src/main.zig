@@ -17,6 +17,30 @@ const max_processes = 2048;
 const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
     psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
 
+pub const AllocationType = packed struct {
+    __padding1__: u12 = 0,
+    commit: bool = false,
+    reserve: bool = false,
+    __padding2__: u5 = 0,
+    reset: bool = false,
+    // This should actually be there according to MSDN:
+    // https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualallocex
+    // but doesn't seem to exist in my headers
+    // reset_undo: bool = false,
+    top_down: bool = false,
+    __padding3__: u1 = 0,
+    physical: bool = false,
+    __padding5__: u6 = 0,
+    large_pages: bool = false,
+    __padding6__: u2 = 0,
+
+    pub fn toDWORD(self: AllocationType) psapi.DWORD {
+        const bytes = mem.toBytes(self);
+
+        return mem.bytesToValue(psapi.DWORD, &bytes);
+    }
+};
+
 /// Injects the DLL located at the path `dll_name` into the process with ID `pid`.
 /// The path will be expanded as needed into an absolute path.
 pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
@@ -389,4 +413,19 @@ test "`getProcessesByName` finds zig processes" {
     var results_buffer: [max_processes]ProcessId = undefined;
     const zig_processes = try getProcessesByName(processes, "zig.exe", results_buffer[0..]);
     testing.expect(zig_processes.len > 0);
+}
+
+test "`AllocationType` works the same as C enum does" {
+    testing.expectEqual((AllocationType{}).toDWORD(), 0);
+    testing.expectEqual((AllocationType{ .reserve = true }).toDWORD(), psapi.MEM_RESERVE);
+    testing.expectEqual((AllocationType{ .commit = true }).toDWORD(), psapi.MEM_COMMIT);
+    testing.expectEqual((AllocationType{ .reset = true }).toDWORD(), psapi.MEM_RESET);
+    // testing.expectEqual((AllocationType{ .reset_undo = true }).toDWORD(), psapi.MEM_RESET_UNDO);
+    testing.expectEqual((AllocationType{ .top_down = true }).toDWORD(), psapi.MEM_TOP_DOWN);
+    testing.expectEqual((AllocationType{ .physical = true }).toDWORD(), psapi.MEM_PHYSICAL);
+    testing.expectEqual((AllocationType{ .large_pages = true }).toDWORD(), psapi.MEM_LARGE_PAGES);
+    testing.expectEqual(
+        (AllocationType{ .commit = true, .reserve = true }).toDWORD(),
+        psapi.MEM_COMMIT | psapi.MEM_RESERVE,
+    );
 }
