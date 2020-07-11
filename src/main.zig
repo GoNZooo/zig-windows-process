@@ -65,7 +65,7 @@ pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
         process_handle,
         null,
         full_length + 1,
-        psapi.MEM_RESERVE | psapi.MEM_COMMIT,
+        AllocationType{ .reserve = true, .commit = true },
         psapi.PAGE_READWRITE,
     );
 
@@ -132,14 +132,14 @@ pub fn virtualAllocEx(
     process_handle: psapi.HANDLE,
     starting_address: ?*c_ulong,
     size: usize,
-    allocation_type: psapi.DWORD,
+    allocation_type: AllocationType,
     protection: psapi.DWORD,
 ) !*c_ulong {
     return if (psapi.VirtualAllocEx(
         process_handle,
         starting_address,
         size,
-        allocation_type,
+        allocation_type.toDWORD(),
         protection,
     )) |memory|
         @ptrCast(*c_ulong, @alignCast(@alignOf(*c_ulong), memory))
