@@ -135,6 +135,7 @@ pub fn virtualAllocEx(
     starting_address: ?*c_ulong,
     size: usize,
     allocation_type: AllocationType,
+    // @TODO: add same thing as `AllocationType` but for protection flags
     protection: psapi.DWORD,
 ) !*c_ulong {
     return if (psapi.VirtualAllocEx(
