@@ -62,7 +62,7 @@ pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
 
     const load_library_ptr = try getProcAddress(kernel32_module, "LoadLibraryA");
 
-    var memory = try virtualAllocEx(
+    const memory = try virtualAllocEx(
         process_handle,
         null,
         full_length + 1,
