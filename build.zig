@@ -28,6 +28,20 @@ pub fn build(b: *Builder) void {
     inject_dll_exe.setBuildMode(mode);
     inject_dll_exe.install();
 
+    const injected_dll_lib = b.addSharedLibrary(
+        "injected",
+        "src/injected.zig",
+        .{ .major = 0, .minor = 1 },
+    );
+    injected_dll_lib.addPackagePath("win32", "dependencies/zig-win32/src/main.zig");
+    injected_dll_lib.linkLibC();
+    injected_dll_lib.linkSystemLibrary("kernel32");
+    // This doesn't seem to work if we use the default GNU target
+    injected_dll_lib.setTarget(.{});
+    // We get undefined symbols if we use debug release for the DLL
+    injected_dll_lib.setBuildMode(.ReleaseFast);
+    injected_dll_lib.install();
+
     const tests = b.addTest("src/main.zig");
 
     const run_find_process_cmd = find_process_exe.run();
