@@ -28,13 +28,7 @@ pub fn build(b: *Builder) void {
     inject_dll_exe.setBuildMode(mode);
     inject_dll_exe.install();
 
-    // const lib = b.addSharedLibrary("injected", "src/injected.zig", .{ .major = 0, .minor = 1 });
-    // lib.linkLibC();
-    // lib.linkSystemLibrary("msvcrt");
-    // lib.addPackagePath("win32", "./dependencies/zig-win32/src/main.zig");
-    // lib.setTarget(target);
-    // lib.setBuildMode(mode);
-    // lib.install();
+    const tests = b.addTest("src/main.zig");
 
     const run_find_process_cmd = find_process_exe.run();
     run_find_process_cmd.step.dependOn(b.getInstallStep());
@@ -47,4 +41,7 @@ pub fn build(b: *Builder) void {
 
     const run_inject_dll_step = b.step("run-inject-dll", "Run the `inject-dll` app");
     run_inject_dll_step.dependOn(&run_inject_dll_cmd.step);
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&tests.step);
 }
