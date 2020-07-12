@@ -294,7 +294,7 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
 pub fn getProcessesByName(
     processes: []ProcessId,
     name: []const u8,
-    buffer: []ProcessId,
+    result_buffer: []ProcessId,
 ) ![]ProcessId {
     var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
     var process_handle: psapi.HANDLE = undefined;
@@ -330,7 +330,7 @@ pub fn getProcessesByName(
             const name_slice = process_name[0..length_copied];
 
             if (mem.eql(u8, name_slice, name)) {
-                buffer[hits] = process_id;
+                result_buffer[hits] = process_id;
                 hits += 1;
             }
 
