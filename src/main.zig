@@ -340,7 +340,7 @@ pub fn getProcessesByName(
         }
     }
 
-    return buffer[0..hits];
+    return result_buffer[0..hits];
 }
 
 /// Returns all (or no) process IDs matching a given name.
