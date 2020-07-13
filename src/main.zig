@@ -393,15 +393,25 @@ pub fn getProcessesByNameAlloc(
 }
 
 test "`getProcessesByNameAlloc` finds zig processes" {
+    var testing_allocator = testing.LeakCountAllocator.init(heap.page_allocator);
     var processes_buffer: [max_processes]ProcessId = undefined;
     const processes = try enumerateProcesses(processes_buffer[0..]);
-    const zig_processes = try getProcessesByNameAlloc(heap.page_allocator, processes, "zig.exe");
+    const zig_processes = try getProcessesByNameAlloc(
+        &testing_allocator.allocator,
+        processes,
+        "zig.exe",
+    );
     testing.expect(zig_processes.items.len != 0);
+    zig_processes.deinit();
+    try testing_allocator.validate();
 }
 
 test "can enumerate processes with dynamic allocation" {
-    const processes = try enumerateProcessesAlloc(heap.page_allocator);
+    var testing_allocator = testing.LeakCountAllocator.init(heap.page_allocator);
+    const processes = try enumerateProcessesAlloc(&testing_allocator.allocator);
     testing.expect(processes.len != 0);
+    testing_allocator.allocator.free(processes);
+    try testing_allocator.validate();
 }
 
 test "`getProcessName` finds 'zig.exe'" {
