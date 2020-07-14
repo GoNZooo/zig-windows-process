@@ -8,14 +8,16 @@ const process = std.process;
 
 const ArrayList = std.ArrayList;
 
-const psapi = @import("./psapi.zig");
+const win32package = @import("win32");
+const win32 = win32package.c;
+const psapi = win32package.psapi;
 
-pub const ProcessId = psapi.DWORD;
+pub const ProcessId = win32.DWORD;
 
 const max_processes = 2048;
 
-const inject_access = psapi.PROCESS_CREATE_THREAD | psapi.PROCESS_QUERY_INFORMATION |
-    psapi.PROCESS_VM_READ | psapi.PROCESS_VM_WRITE | psapi.PROCESS_VM_OPERATION;
+const inject_access = win32.PROCESS_CREATE_THREAD | win32.PROCESS_QUERY_INFORMATION |
+    win32.PROCESS_VM_READ | win32.PROCESS_VM_WRITE | win32.PROCESS_VM_OPERATION;
 
 pub const AllocationType = packed struct {
     __padding1__: u12 = 0,
@@ -34,24 +36,24 @@ pub const AllocationType = packed struct {
     large_pages: bool = false,
     __padding6__: u2 = 0,
 
-    pub fn toDWORD(self: AllocationType) psapi.DWORD {
+    pub fn toDWORD(self: AllocationType) win32.DWORD {
         const bytes = mem.toBytes(self);
 
-        return mem.bytesToValue(psapi.DWORD, &bytes);
+        return mem.bytesToValue(win32.DWORD, &bytes);
     }
 };
 
 // @TODO: take in DLL byte data instead of path here?
 /// Injects the DLL located at the path `dll_name` into the process with ID `pid`.
 /// The path will be expanded as needed into an absolute path.
-pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
-    var zeroed_dll_name: [psapi.MAX_PATH:0]u8 = undefined;
+pub fn injectDll(pid: ProcessId, dll_name: []const u8) !win32.DWORD {
+    var zeroed_dll_name: [win32.MAX_PATH:0]u8 = undefined;
     mem.copy(u8, zeroed_dll_name[0..dll_name.len], dll_name);
     zeroed_dll_name[dll_name.len] = 0;
-    var full_dll_path: [psapi.MAX_PATH:0]u8 = undefined;
-    const full_length = psapi.GetFullPathNameA(
+    var full_dll_path: [win32.MAX_PATH:0]u8 = undefined;
+    const full_length = win32.GetFullPathNameA(
         &zeroed_dll_name[0],
-        psapi.MAX_PATH,
+        win32.MAX_PATH,
         &full_dll_path,
         null,
     );
@@ -67,7 +69,7 @@ pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
         null,
         full_length + 1,
         AllocationType{ .reserve = true, .commit = true },
-        psapi.PAGE_READWRITE,
+        win32.PAGE_READWRITE,
     );
 
     _ = try writeProcessMemory(
@@ -80,18 +82,18 @@ pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
         process_handle,
         null,
         0,
-        @ptrCast(psapi.LPTHREAD_START_ROUTINE, load_library_ptr),
+        @ptrCast(win32.LPTHREAD_START_ROUTINE, load_library_ptr),
         memory,
         0,
         null,
     );
 
-    const wait_result = psapi.WaitForSingleObject(thread_handle, psapi.INFINITE);
+    const wait_result = win32.WaitForSingleObject(thread_handle, win32.INFINITE);
 
     const exit_code = try getExitCodeThread(thread_handle);
 
     try closeHandle(thread_handle);
-    try virtualFreeEx(process_handle, memory, 0, psapi.MEM_RELEASE);
+    try virtualFreeEx(process_handle, memory, 0, win32.MEM_RELEASE);
     try closeHandle(process_handle);
 
     return exit_code;
@@ -99,31 +101,31 @@ pub fn injectDll(pid: ProcessId, dll_name: []const u8) !psapi.DWORD {
 
 /// Opens a process and returns a handle to it.
 /// The caller is responsible for calling `closeHandle` on the returned handle.
-pub fn openProcess(access_rights: c_ulong, inherit_handle: bool, pid: ProcessId) !psapi.HANDLE {
-    const win_bool: psapi.BOOL = if (inherit_handle) psapi.TRUE else psapi.FALSE;
-    return if (psapi.OpenProcess(access_rights, win_bool, pid)) |handle|
+pub fn openProcess(access_rights: c_ulong, inherit_handle: bool, pid: ProcessId) !win32.HANDLE {
+    const win_bool: win32.BOOL = if (inherit_handle) win32.TRUE else win32.FALSE;
+    return if (win32.OpenProcess(access_rights, win_bool, pid)) |handle|
         handle
     else
         error.UnableToOpenProcess;
 }
 
 // @TODO: have this return null instead, maybe?
-pub fn getModuleHandle(name: []const u8) !psapi.HINSTANCE {
-    return if (psapi.GetModuleHandleA(name.ptr)) |instance|
+pub fn getModuleHandle(name: []const u8) !win32.HINSTANCE {
+    return if (win32.GetModuleHandleA(name.ptr)) |instance|
         instance
     else
         error.UnableToGetModuleHandle;
 }
 
 /// Closes a handle, should be used after `openProcess`.
-pub fn closeHandle(handle: psapi.HANDLE) !void {
-    if (psapi.CloseHandle(handle) == 0) return error.UnableToCloseHandle;
+pub fn closeHandle(handle: win32.HANDLE) !void {
+    if (win32.CloseHandle(handle) == 0) return error.UnableToCloseHandle;
 }
 
 /// Returns a function pointer to the function with `name` in `module`. A module
 /// can be loaded via `getModuleHandle`.
-pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callconv(.C) c_longlong {
-    return if (psapi.GetProcAddress(module, name.ptr)) |address|
+pub fn getProcAddress(module: win32.HMODULE, name: []const u8) !fn (...) callconv(.C) c_longlong {
+    return if (win32.GetProcAddress(module, name.ptr)) |address|
         address
     else
         error.UnableToGetProcAddress;
@@ -132,14 +134,14 @@ pub fn getProcAddress(module: psapi.HMODULE, name: []const u8) !fn (...) callcon
 /// Allocates memory in the process corresponding to `process_handle`, which can
 /// be used to allocate memory in other processes.
 pub fn virtualAllocEx(
-    process_handle: psapi.HANDLE,
+    process_handle: win32.HANDLE,
     starting_address: ?*c_ulong,
     size: usize,
     allocation_type: AllocationType,
     // @TODO: add same thing as `AllocationType` but for protection flags
-    protection: psapi.DWORD,
+    protection: win32.DWORD,
 ) !*c_ulong {
-    return if (psapi.VirtualAllocEx(
+    return if (win32.VirtualAllocEx(
         process_handle,
         starting_address,
         size,
@@ -152,23 +154,23 @@ pub fn virtualAllocEx(
 }
 
 pub fn virtualFreeEx(
-    process_handle: psapi.HANDLE,
+    process_handle: win32.HANDLE,
     starting_address: ?*c_ulong,
     size: usize,
-    free_type: psapi.DWORD,
+    free_type: win32.DWORD,
 ) !void {
-    if (psapi.VirtualFreeEx(process_handle, starting_address, size, free_type) == 0) {
+    if (win32.VirtualFreeEx(process_handle, starting_address, size, free_type) == 0) {
         return error.UnableToVirtualFreeEx;
     }
 }
 
 pub fn writeProcessMemory(
-    process_handle: psapi.HANDLE,
+    process_handle: win32.HANDLE,
     starting_address: ?*c_ulong,
     buffer: []const u8,
 ) !usize {
     var bytes_written: usize = undefined;
-    return if (psapi.WriteProcessMemory(
+    return if (win32.WriteProcessMemory(
         process_handle,
         starting_address,
         buffer.ptr,
@@ -178,15 +180,15 @@ pub fn writeProcessMemory(
 }
 
 pub fn createRemoteThread(
-    process_handle: psapi.HANDLE,
-    thread_attributes: psapi.LPSECURITY_ATTRIBUTES,
+    process_handle: win32.HANDLE,
+    thread_attributes: win32.LPSECURITY_ATTRIBUTES,
     stack_size: usize,
-    start_address: psapi.LPTHREAD_START_ROUTINE,
-    parameter: psapi.LPVOID,
-    flags: psapi.DWORD,
-    thread_id: psapi.LPDWORD,
-) !psapi.HANDLE {
-    return if (psapi.CreateRemoteThreadEx(
+    start_address: win32.LPTHREAD_START_ROUTINE,
+    parameter: win32.LPVOID,
+    flags: win32.DWORD,
+    thread_id: win32.LPDWORD,
+) !win32.HANDLE {
+    return if (win32.CreateRemoteThreadEx(
         process_handle,
         thread_attributes,
         stack_size,
@@ -201,9 +203,9 @@ pub fn createRemoteThread(
         error.UnableToCreateRemoteThread;
 }
 
-pub fn getExitCodeThread(handle: psapi.HANDLE) !psapi.DWORD {
-    var exit_code: psapi.DWORD = undefined;
-    if (psapi.GetExitCodeThread(handle, &exit_code) == 0) {
+pub fn getExitCodeThread(handle: win32.HANDLE) !win32.DWORD {
+    var exit_code: win32.DWORD = undefined;
+    if (win32.GetExitCodeThread(handle, &exit_code) == 0) {
         return error.UnableToGetExitCodeFromThread;
     }
 
@@ -242,12 +244,12 @@ pub fn enumerateProcesses(processes: []ProcessId) ![]ProcessId {
 /// Returns one or no process IDs for a process matching a given name, biased
 /// towards the first match in the process ID slice.
 pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
-    var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
-    var process_handle: psapi.HANDLE = undefined;
+    var process_name: [win32.MAX_PATH]win32.TCHAR = undefined;
+    var process_handle: win32.HANDLE = undefined;
 
     for (processes) |process_id| {
         process_handle = openProcess(
-            psapi.PROCESS_QUERY_INFORMATION | psapi.PROCESS_VM_READ,
+            win32.PROCESS_QUERY_INFORMATION | win32.PROCESS_VM_READ,
             false,
             process_id,
         ) catch |e| {
@@ -257,8 +259,8 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
         };
 
         if (process_handle) |handle| {
-            var module: psapi.HMODULE = undefined;
-            var bytes_needed: psapi.DWORD = undefined;
+            var module: win32.HMODULE = undefined;
+            var bytes_needed: win32.DWORD = undefined;
             const enum_result = psapi.EnumProcessModulesEx(
                 handle,
                 &module,
@@ -271,7 +273,7 @@ pub fn getProcessByName(processes: []ProcessId, name: []const u8) !?ProcessId {
                     handle,
                     module,
                     &process_name[0],
-                    @sizeOf(@TypeOf(process_name)) / @sizeOf(psapi.TCHAR),
+                    @sizeOf(@TypeOf(process_name)) / @sizeOf(win32.TCHAR),
                 );
                 const name_slice = process_name[0..length_copied];
 
@@ -296,13 +298,13 @@ pub fn getProcessesByName(
     name: []const u8,
     result_buffer: []ProcessId,
 ) ![]ProcessId {
-    var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
-    var process_handle: psapi.HANDLE = undefined;
+    var process_name: [win32.MAX_PATH]win32.TCHAR = undefined;
+    var process_handle: win32.HANDLE = undefined;
 
     var hits: usize = 0;
     for (processes) |process_id| {
         process_handle = openProcess(
-            psapi.PROCESS_QUERY_INFORMATION | psapi.PROCESS_VM_READ,
+            win32.PROCESS_QUERY_INFORMATION | win32.PROCESS_VM_READ,
             false,
             process_id,
         ) catch |e| {
@@ -311,8 +313,8 @@ pub fn getProcessesByName(
             }
         };
 
-        var module: psapi.HMODULE = undefined;
-        var bytes_needed: psapi.DWORD = undefined;
+        var module: win32.HMODULE = undefined;
+        var bytes_needed: win32.DWORD = undefined;
         const enum_result = psapi.EnumProcessModulesEx(
             process_handle,
             &module,
@@ -325,7 +327,7 @@ pub fn getProcessesByName(
                 process_handle,
                 module,
                 &process_name[0],
-                @sizeOf(@TypeOf(process_name)) / @sizeOf(psapi.TCHAR),
+                @sizeOf(@TypeOf(process_name)) / @sizeOf(win32.TCHAR),
             );
             const name_slice = process_name[0..length_copied];
 
@@ -351,12 +353,12 @@ pub fn getProcessesByNameAlloc(
     name: []const u8,
 ) !ArrayList(ProcessId) {
     var found_processes = ArrayList(ProcessId).init(allocator);
-    var process_name: [psapi.MAX_PATH]psapi.TCHAR = undefined;
-    var process_handle: psapi.HANDLE = undefined;
+    var process_name: [win32.MAX_PATH]win32.TCHAR = undefined;
+    var process_handle: win32.HANDLE = undefined;
 
     for (processes) |process_id| {
         process_handle = openProcess(
-            psapi.PROCESS_QUERY_INFORMATION | psapi.PROCESS_VM_READ,
+            win32.PROCESS_QUERY_INFORMATION | win32.PROCESS_VM_READ,
             false,
             process_id,
         ) catch |e| {
@@ -365,8 +367,8 @@ pub fn getProcessesByNameAlloc(
             }
         };
 
-        var module: psapi.HMODULE = undefined;
-        var bytes_needed: psapi.DWORD = undefined;
+        var module: win32.HMODULE = undefined;
+        var bytes_needed: win32.DWORD = undefined;
         const enum_result = psapi.EnumProcessModulesEx(
             process_handle,
             &module,
@@ -379,7 +381,7 @@ pub fn getProcessesByNameAlloc(
                 process_handle,
                 module,
                 &process_name[0],
-                @sizeOf(@TypeOf(process_name)) / @sizeOf(psapi.TCHAR),
+                @sizeOf(@TypeOf(process_name)) / @sizeOf(win32.TCHAR),
             );
             const name_slice = process_name[0..length_copied];
 
@@ -431,15 +433,15 @@ test "`getProcessesByName` finds zig processes" {
 
 test "`AllocationType` works the same as C enum does" {
     testing.expectEqual((AllocationType{}).toDWORD(), 0);
-    testing.expectEqual((AllocationType{ .reserve = true }).toDWORD(), psapi.MEM_RESERVE);
-    testing.expectEqual((AllocationType{ .commit = true }).toDWORD(), psapi.MEM_COMMIT);
-    testing.expectEqual((AllocationType{ .reset = true }).toDWORD(), psapi.MEM_RESET);
-    // testing.expectEqual((AllocationType{ .reset_undo = true }).toDWORD(), psapi.MEM_RESET_UNDO);
-    testing.expectEqual((AllocationType{ .top_down = true }).toDWORD(), psapi.MEM_TOP_DOWN);
-    testing.expectEqual((AllocationType{ .physical = true }).toDWORD(), psapi.MEM_PHYSICAL);
-    testing.expectEqual((AllocationType{ .large_pages = true }).toDWORD(), psapi.MEM_LARGE_PAGES);
+    testing.expectEqual((AllocationType{ .reserve = true }).toDWORD(), win32.MEM_RESERVE);
+    testing.expectEqual((AllocationType{ .commit = true }).toDWORD(), win32.MEM_COMMIT);
+    testing.expectEqual((AllocationType{ .reset = true }).toDWORD(), win32.MEM_RESET);
+    // testing.expectEqual((AllocationType{ .reset_undo = true }).toDWORD(), win32.MEM_RESET_UNDO);
+    testing.expectEqual((AllocationType{ .top_down = true }).toDWORD(), win32.MEM_TOP_DOWN);
+    testing.expectEqual((AllocationType{ .physical = true }).toDWORD(), win32.MEM_PHYSICAL);
+    testing.expectEqual((AllocationType{ .large_pages = true }).toDWORD(), win32.MEM_LARGE_PAGES);
     testing.expectEqual(
         (AllocationType{ .commit = true, .reserve = true }).toDWORD(),
-        psapi.MEM_COMMIT | psapi.MEM_RESERVE,
+        win32.MEM_COMMIT | win32.MEM_RESERVE,
     );
 }

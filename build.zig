@@ -15,6 +15,7 @@ pub fn build(b: *Builder) void {
     const mode = b.standardReleaseOptions();
 
     const find_process_exe = b.addExecutable("find-process", "src/find_process.zig");
+    find_process_exe.addPackagePath("win32", "dependencies/zig-win32/src/main.zig");
     find_process_exe.linkLibC();
     find_process_exe.linkSystemLibrary("kernel32");
     find_process_exe.setTarget(target);
@@ -22,6 +23,7 @@ pub fn build(b: *Builder) void {
     find_process_exe.install();
 
     const inject_dll_exe = b.addExecutable("inject-dll", "src/inject_dll.zig");
+    inject_dll_exe.addPackagePath("win32", "dependencies/zig-win32/src/main.zig");
     inject_dll_exe.linkLibC();
     inject_dll_exe.linkSystemLibrary("kernel32");
     inject_dll_exe.setTarget(target);
@@ -43,6 +45,7 @@ pub fn build(b: *Builder) void {
     injected_dll_lib.install();
 
     const tests = b.addTest("src/main.zig");
+    tests.addPackagePath("win32", "dependencies/zig-win32/src/main.zig");
 
     const run_find_process_cmd = find_process_exe.run();
     run_find_process_cmd.step.dependOn(b.getInstallStep());
